@@ -71,8 +71,8 @@ func main() {
 	mailerClient := mailer.MailtrapClient{
 		Host:     "sandbox.smtp.mailtrap.io",
 		Port:     2525,
-		Username: "TU_USUARIO_DE_MAILTRAP",
-		Password: "TU_PASSWORD_DE_MAILTRAP",
+		Username: "96a39335c1f4ba",
+		Password: "8daf541a756e21",
 		From:     "no-reply@gophersocial.net",
 	}
 

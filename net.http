@@ -1,21 +1,34 @@
-GET http://localhost:8080/v1/test-protected
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnb3BoZXJzb2NpYWwiLCJzdWIiOiIxIiwiZXhwIjoxNzU4MjM0NTQzLCJpYXQiOjE3NTgxNDgxNDN9.LzVc0e8tQaeXwOrjwhhL4FUxNBKxhQo8HBYtwgPeFmE
-
-
-###
-POST http://localhost:8080/v1/authentication/token
-
-{
-    "email": "hongo@example.com",
-    "password": "strongpassword123"
-}
-
-###
-POST http://localhost:8080/v1/posts
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnb3BoZXJzb2NpYWwiLCJzdWIiOiIxIiwiZXhwIjoxNzU4MjM0NTQzLCJpYXQiOjE3NTgxNDgxNDN9.LzVc0e8tQaeXwOrjwhhL4FUxNBKxhQo8HBYtwgPeFmE
+### 1. Registrar al Usuario "A" (kamenrider)
+POST http://localhost:8080/v1/authentication/user
 Content-Type: application/json
 
 {
-    "title": "Mi primer Rider Kick",
-    "content": "¡Fue una experiencia increíble!"
+    "username": "kamenrider",
+    "email": "rider-a@example.com",
+    "password": "password123"
+}
+
+### 2. Activar al Usuario "A" con el Token del Email
+# Reemplaza <PEGAR_TOKEN_DE_MAILTRAP_AQUI> con el token que copiaste.
+PUT http://localhost:8080/v1/users/activate/ac6fd6b8-6a12-4f79-80b8-0073a797aa57
+
+### 3. Iniciar Sesión como Usuario "A" para obtener el Token
+
+POST http://localhost:8080/v1/authentication/token
+Content-Type: application/json
+
+{
+    "email": "rider-a@example.com",
+    "password": "password123"
+}
+
+### 4. Crear un Post como Usuario "A"
+# La variable {{loginUsuarioA.response.body.data.token}} usa el token de la petición anterior.
+POST http://localhost:8080/v1/posts
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnb3BoZXJzb2NpYWwiLCJzdWIiOiIxIiwiZXhwIjoxNzU4MzkzMTY2LCJpYXQiOjE3NTgzMDY3NjZ9.Hh-M7KKcJXBzhv2IKpOTK_zQvuexX_eI_rBXV8DQNfM
+
+{
+    "title": "¡Mi primer Henshin!",
+    "content": "Hoy me transformé por primera vez. Fue increíble."
 }
