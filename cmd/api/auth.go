@@ -2,13 +2,16 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"net/http"
 	"time"
 
+	// <--- Importamos el mailer
 	"GopherSocial/internal/store"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type RegisterUserPayload struct {
@@ -17,17 +20,23 @@ type RegisterUserPayload struct {
 	Password string `json:"password" validate:"required,min=3"`
 }
 
+type CreateUserTokenPayload struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
+}
+
+// UserWithToken no se usa en este handler, pero es bueno tenerla para referencia futura
+type UserWithToken struct {
+	*store.User
+	Token string `json:"token"`
+}
+
 func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
 	var payload RegisterUserPayload
-
-	// Usamos nuestro nuevo helper para leer el JSON de forma segura.
-	err := app.readJSON(w, r, &payload)
-	if err != nil {
+	if err := app.readJSON(w, r, &payload); err != nil {
 		app.badRequestResponse(w, r, err)
 		return
 	}
-
-	// TODO: Añadir validación aquí
 
 	user := &store.User{
 		Username: payload.Username,
@@ -39,7 +48,13 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	err = app.store.Users.Create(r.Context(), user)
+	// 1. Generamos un token único para la activación
+	plainToken := uuid.New().String()
+	hash := sha256.Sum256([]byte(plainToken))
+	tokenHash := hash[:]
+
+	// 2. Usamos `CreateAndInvite`
+	err := app.store.Users.CreateAndInvite(r.Context(), user, tokenHash, time.Hour*24*3) // Expira en 3 días
 	if err != nil {
 		switch err {
 		case store.ErrDuplicateEmail, store.ErrDuplicateUsername:
@@ -50,12 +65,25 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	app.jsonResponse(w, http.StatusCreated, user)
-}
+	// 3. Preparamos los datos para la plantilla del correo
+	activationURL := fmt.Sprintf("http://localhost:8080/v1/users/activate/%s", plainToken)
+	data := struct {
+		Username      string
+		ActivationURL string
+	}{
+		Username:      user.Username,
+		ActivationURL: activationURL,
+	}
 
-type CreateUserTokenPayload struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
+	// 4. ¡Enviamos el correo!
+	_, err = app.mailer.Send("user_invitation.tmpl", user.Username, user.Email, data)
+	if err != nil {
+		app.logger.Printf("error sending welcome email: %s", err)
+		app.internalServerError(w, r, err)
+		return
+	}
+
+	app.jsonResponse(w, http.StatusCreated, user)
 }
 
 func (app *application) createTokenHandler(w http.ResponseWriter, r *http.Request) {
@@ -76,11 +104,10 @@ func (app *application) createTokenHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// ¡Las credenciales son correctas! Creamos el token.
 	claims := jwt.RegisteredClaims{
-		Subject:   fmt.Sprintf("%d", user.ID), // 'sub' es el ID del usuario
+		Subject:   fmt.Sprintf("%d", user.ID),
 		Issuer:    "gophersocial",
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24)), // Expira en 24h
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 	}
 

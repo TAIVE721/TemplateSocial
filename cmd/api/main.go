@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"GopherSocial/internal/auth"
 	"GopherSocial/internal/db"
+	"GopherSocial/internal/mailer"
 	"GopherSocial/internal/store"
 
 	"GopherSocial/internal/store/cache"
@@ -38,6 +40,8 @@ type application struct {
 	store         store.Storage
 	authenticator *auth.JWTAuthenticator
 	cacheStorage  cache.Storage
+	mailer        mailer.Client
+	logger        *log.Logger
 }
 
 func main() {
@@ -63,12 +67,26 @@ func main() {
 	fmt.Println("¡Conexión a la base de datos exitosa!")
 
 	storage := store.NewStorage(db)
+
+	mailerClient := mailer.MailtrapClient{
+		Host:     "sandbox.smtp.mailtrap.io",
+		Port:     2525,
+		Username: "TU_USUARIO_DE_MAILTRAP",
+		Password: "TU_PASSWORD_DE_MAILTRAP",
+		From:     "no-reply@gophersocial.net",
+	}
+
+	// Crea una instancia del logger que escribirá en la consola.
+	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
+
 	app := &application{
 		config:        cfg,
 		db:            db,
 		store:         storage,
 		authenticator: authenticator,
 		cacheStorage:  cacheStorage,
+		mailer:        mailerClient,
+		logger:        logger,
 	}
 
 	srv := &http.Server{
