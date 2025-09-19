@@ -106,6 +106,7 @@ func (app *application) mount() http.Handler {
 	r.Get("/v1/health", app.healthCheckHandler)
 	r.Post("/v1/authentication/user", app.registerUserHandler)
 	r.Post("/v1/authentication/token", app.createTokenHandler)
+	r.Put("/v1/users/activate/{token}", app.activateUserHandler)
 
 	r.Group(func(r chi.Router) {
 		r.Use(app.AuthTokenMiddleware) // ¡Aplicamos el guardián!
