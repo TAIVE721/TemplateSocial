@@ -21,11 +21,6 @@ type RegisterUserPayload struct {
 	Password string `json:"password" validate:"required,min=3"`
 }
 
-type CreateUserTokenPayload struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
-}
-
 func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
 	var payload RegisterUserPayload
 	if err := app.readJSON(w, r, &payload); err != nil {
@@ -57,24 +52,28 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		}
 		return
 	}
+	go func() {
+		activationURL := fmt.Sprintf("http://localhost:8080/v1/users/activate/%s", plainToken)
+		data := map[string]string{
+			"ActivationURL": activationURL,
+			"Username":      user.Username,
+		}
 
-	// ¡MUY IMPORTANTE! La URL de activación debe apuntar a tu frontend,
-	// no al backend. El frontend luego hará la llamada a la API.
-	// Por ahora, lo dejamos apuntando al backend para probar.
-	activationURL := fmt.Sprintf("http://localhost:8080/v1/users/activate/%s", plainToken)
-	data := map[string]string{
-		"ActivationURL": activationURL,
-		"Username":      user.Username,
-	}
+		// Enviamos el correo en segundo plano
+		_, err := app.mailer.Send("user_invitation.tmpl", user.Username, user.Email, data)
+		if err != nil {
+			// Si falla, solo lo registramos. El usuario ya recibió su respuesta.
+			app.logger.Printf("ERROR: no se pudo enviar el correo de bienvenida en segundo plano: %s", err)
+		}
+	}() // Los paréntesis finales `()` son los que ejecutan la función anónima.
 
-	_, err = app.mailer.Send("user_invitation.tmpl", user.Username, user.Email, data)
-	if err != nil {
-		app.logger.Printf("ERROR: could not send welcome email: %s", err)
-		app.internalServerError(w, r, err)
-		return
-	}
-
+	// Respondemos al usuario INMEDIATAMENTE, sin esperar el correo.
 	app.jsonResponse(w, http.StatusCreated, user)
+}
+
+type CreateUserTokenPayload struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
 }
 
 func (app *application) createTokenHandler(w http.ResponseWriter, r *http.Request) {
