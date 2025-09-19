@@ -1,0 +1,21 @@
+GET http://localhost:8080/v1/test-protected
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnb3BoZXJzb2NpYWwiLCJzdWIiOiIxIiwiZXhwIjoxNzU4MjM0NTQzLCJpYXQiOjE3NTgxNDgxNDN9.LzVc0e8tQaeXwOrjwhhL4FUxNBKxhQo8HBYtwgPeFmE
+
+
+###
+POST http://localhost:8080/v1/authentication/token
+
+{
+    "email": "hongo@example.com",
+    "password": "strongpassword123"
+}
+
+###
+POST http://localhost:8080/v1/posts
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnb3BoZXJzb2NpYWwiLCJzdWIiOiIxIiwiZXhwIjoxNzU4MjM0NTQzLCJpYXQiOjE3NTgxNDgxNDN9.LzVc0e8tQaeXwOrjwhhL4FUxNBKxhQo8HBYtwgPeFmE
+Content-Type: application/json
+
+{
+    "title": "Mi primer Rider Kick",
+    "content": "¡Fue una experiencia increíble!"
+}

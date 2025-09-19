@@ -1,0 +1,11 @@
+{{define "subject"}}Finaliza tu registro en GopherSocial{{end}}
+{{define "body"}}
+<!doctype html>
+<html><body>
+<p>Hola {{.Username}},</p>
+<p>¡Gracias por registrarte! Antes de empezar, necesitas confirmar tu correo.</p>
+<p>Haz clic en el siguiente enlace para activar tu cuenta:</p>
+<p><a href="{{.ActivationURL}}">Activar mi cuenta</a></p>
+<p>El equipo de GopherSocial</p>
+</body></html>
+{{end}}
