@@ -10,6 +10,7 @@ import (
 
 	"GopherSocial/internal/auth"
 	"GopherSocial/internal/db"
+	"GopherSocial/internal/env"
 	"GopherSocial/internal/mailer"
 	"GopherSocial/internal/store"
 
@@ -46,11 +47,11 @@ type application struct {
 
 func main() {
 	var cfg config
-	cfg.addr = ":8080"
-	cfg.env = "development"
-	cfg.db.addr = "postgres://admin:adminpassword@localhost/socialnetwork?sslmode=disable"
-	cfg.auth.secret = "una-clave-super-secreta-kamen-rider"
-	cfg.redis.addr = "localhost:6379"
+	cfg.addr = env.GetString("ADDR", ":8080")
+	cfg.env = env.GetString("ENV", "development")
+	cfg.db.addr = env.GetString("DB_ADDR", "postgres://admin:adminpassword@localhost/socialnetwork?sslmode=disable")
+	cfg.auth.secret = env.GetString("AUTH_TOKEN_SECRET", "una-clave-super-secreta-kamen-rider")
+	cfg.redis.addr = env.GetString("REDIS_ADDR", "localhost:6379")
 
 	rdb := cache.NewRedisClient(cfg.redis.addr, "", 0)
 	fmt.Println("¡Conexión a Redis exitosa!")
@@ -119,6 +120,11 @@ func (app *application) mount() http.Handler {
 
 		r.Post("/v1/posts", app.createPostHandler)
 		r.Get("/v1/posts/{postID}", app.getPostHandler)
+
+		r.Put("/v1/users/{userID}/follow", app.followUserHandler)
+		r.Put("/v1/users/{userID}/unfollow", app.unfollowUserHandler)
+		r.Get("/v1/users/feed", app.getUserFeedHandler)
+
 	})
 
 	r.Group(func(r chi.Router) {

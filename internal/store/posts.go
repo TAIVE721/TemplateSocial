@@ -13,7 +13,8 @@ type Post struct {
 	Content   string `json:"content"`
 	UserID    int64  `json:"user_id"`
 	CreatedAt string `json:"created_at"`
-	Version   int    `json:"version"` // ¡Campo nuevo!
+	Version   int    `json:"version"`
+	User      User   `json:"user"` // ¡Campo nuevo!
 }
 
 type PostStore struct {
@@ -88,4 +89,59 @@ func (s *PostStore) Delete(ctx context.Context, id int64) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+// PostWithMetadata es una nueva struct que incluye el Post y un contador de comentarios.
+// La usaremos para nuestro feed.
+type PostWithMetadata struct {
+	Post
+	CommentsCount int  `json:"comments_count"`
+	User          User `json:"user,omitempty"`
+}
+
+// GetUserFeed recupera las publicaciones de los usuarios que sigue el userID.
+func (s *PostStore) GetUserFeed(ctx context.Context, userID int64) ([]PostWithMetadata, error) {
+	query := `
+		SELECT
+			p.id, p.user_id, p.title, p.content, p.created_at, p.version,
+			u.username
+		FROM posts p
+		JOIN users u ON p.user_id = u.id
+		JOIN followers f ON f.user_id = p.user_id
+		WHERE f.follower_id = $1 OR p.user_id = $1
+		GROUP BY p.id, u.username
+		ORDER BY p.created_at DESC
+		LIMIT 20`
+
+	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
+	defer cancel()
+
+	rows, err := s.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var feed []PostWithMetadata
+	for rows.Next() {
+		var p PostWithMetadata
+		err := rows.Scan(
+			&p.ID,
+			&p.UserID,
+			&p.Title,
+			&p.Content,
+			&p.CreatedAt,
+			&p.Version,
+			&p.User.Username, // <-- Ahora SÍ existe p.User.Username
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Asignamos el ID del usuario de la publicación
+		p.User.ID = p.UserID
+		feed = append(feed, p)
+	}
+
+	return feed, nil
 }
