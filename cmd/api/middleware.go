@@ -113,19 +113,37 @@ func (app *application) postsContextMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (app *application) checkPostOwnership(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Extraemos el post y el usuario del contexto
-		post, okPost := r.Context().Value(postCtxKey).(*store.Post)
-		user, okUser := r.Context().Value(userCtxKey).(*store.User)
-		if !okPost || !okUser {
-			app.internalServerError(w, r, errors.New("contexto inválido"))
-			return
-		}
+func (app *application) checkPermission(requiredLevel int) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			user := r.Context().Value(userCtxKey).(*store.User)
+			post := r.Context().Value(postCtxKey).(*store.Post) // Asumimos que el post está en el contexto
 
-		// ¡La comprobación es ahora más limpia y segura!
-		if post.UserID != user.ID {
+			// Un usuario siempre puede modificar sus propios posts
+			if post.UserID == user.ID {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Si no es su post, verificamos si su nivel es suficiente
+			if user.Role.Level >= requiredLevel {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Si no cumple ninguna condición, acceso denegado.
 			app.forbiddenResponse(w, r)
+		})
+	}
+}
+
+func (app *application) RateLimiterMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Usamos RealIP para obtener la IP verdadera, incluso si hay un proxy.
+		ip := r.RemoteAddr
+
+		if allow, _ := app.rateLimiter.Allow(ip); !allow {
+			app.rateLimitExceededResponse(w, r)
 			return
 		}
 

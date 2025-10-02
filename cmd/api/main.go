@@ -7,11 +7,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time" // Asegúrate de tener este import
 
 	"GopherSocial/internal/auth"
 	"GopherSocial/internal/db"
 	"GopherSocial/internal/env"
 	"GopherSocial/internal/mailer"
+	"GopherSocial/internal/ratelimiter" // <-- Importa el nuevo paquete
 	"GopherSocial/internal/store"
 
 	"GopherSocial/internal/store/cache"
@@ -33,6 +35,7 @@ type config struct {
 	redis struct { // Configuración de Redis
 		addr string
 	}
+	rateLimiter ratelimiter.Config
 }
 
 type application struct {
@@ -42,6 +45,7 @@ type application struct {
 	authenticator *auth.JWTAuthenticator
 	cacheStorage  cache.Storage
 	mailer        mailer.Client
+	rateLimiter   ratelimiter.Limiter
 	logger        *log.Logger
 }
 
@@ -52,6 +56,12 @@ func main() {
 	cfg.db.addr = env.GetString("DB_ADDR", "postgres://admin:adminpassword@localhost/socialnetwork?sslmode=disable")
 	cfg.auth.secret = env.GetString("AUTH_TOKEN_SECRET", "una-clave-super-secreta-kamen-rider")
 	cfg.redis.addr = env.GetString("REDIS_ADDR", "localhost:6379")
+
+	cfg.rateLimiter = ratelimiter.Config{
+		RequestsPerTimeFrame: env.GetInt("RATELIMITER_REQUESTS", 20),
+		TimeFrame:            time.Second * 60, // 20 peticiones por minuto
+		Enabled:              env.GetBool("RATELIMITER_ENABLED", true),
+	}
 
 	rdb := cache.NewRedisClient(cfg.redis.addr, "", 0)
 	fmt.Println("¡Conexión a Redis exitosa!")
@@ -77,6 +87,11 @@ func main() {
 		From:     "no-reply@gophersocial.net",
 	}
 
+	rateLimiter := ratelimiter.NewFixedWindowLimiter(
+		cfg.rateLimiter.RequestsPerTimeFrame,
+		cfg.rateLimiter.TimeFrame,
+	)
+
 	// Crea una instancia del logger que escribirá en la consola.
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
 
@@ -87,6 +102,7 @@ func main() {
 		authenticator: authenticator,
 		cacheStorage:  cacheStorage,
 		mailer:        mailerClient,
+		rateLimiter:   rateLimiter,
 		logger:        logger,
 	}
 
@@ -103,6 +119,10 @@ func main() {
 func (app *application) mount() http.Handler {
 	// Creamos una nueva instancia de Chi router.
 	r := chi.NewRouter()
+
+	if app.config.rateLimiter.Enabled {
+		r.Use(app.RateLimiterMiddleware)
+	}
 
 	r.Get("/v1/health", app.healthCheckHandler)
 	r.Post("/v1/authentication/user", app.registerUserHandler)
@@ -139,9 +159,12 @@ func (app *application) mount() http.Handler {
 
 			// Solo el dueño puede actualizar o borrar
 			r.Group(func(r chi.Router) {
-				r.Use(app.checkPostOwnership)
-				r.Patch("/", app.updatePostHandler)
-				r.Delete("/", app.deletePostHandler)
+				// Solo el dueño o alguien con nivel 2 (moderador) o superior puede actualizar
+				// Solo el dueño o alguien con nivel 2 (moderador) o superior puede actualizar
+				r.With(app.checkPermission(2)).Patch("/", app.updatePostHandler)
+
+				// Solo el dueño o alguien con nivel 3 (admin) puede borrar
+				r.With(app.checkPermission(3)).Delete("/", app.deletePostHandler)
 			})
 		})
 	})

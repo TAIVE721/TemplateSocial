@@ -23,6 +23,14 @@ type User struct {
 	Password  password `json:"-"`
 	CreatedAt string   `json:"created_at"`
 	IsActive  bool     `json:"is_active"`
+	RoleID    int64    `json:"-"`    // ID del rol, no lo exponemos en el JSON
+	Role      Role     `json:"role"` // Struct anidada con la info del rol
+}
+
+type Role struct {
+	ID    int64  `json:"id"`
+	Name  string `json:"name"`
+	Level int    `json:"level"`
 }
 
 // password es un tipo custom para manejar el hash de forma segura.

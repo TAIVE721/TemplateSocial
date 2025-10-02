@@ -31,3 +31,8 @@ func (app *application) notFoundResponse(w http.ResponseWriter, r *http.Request)
 func (app *application) forbiddenResponse(w http.ResponseWriter, r *http.Request) {
 	app.writeJSONError(w, http.StatusForbidden, "no tienes permiso para realizar esta acción")
 }
+
+func (app *application) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
+	message := "límite de peticiones excedido"
+	app.writeJSONError(w, http.StatusTooManyRequests, message)
+}
