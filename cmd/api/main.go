@@ -154,18 +154,13 @@ func (app *application) mount() http.Handler {
 
 		// Creamos un sub-grupo para rutas que operan sobre un post específico
 		r.Route("/v1/posts/{postID}", func(r chi.Router) {
-			r.Use(app.postsContextMiddleware) // Carga el post en el contexto
+			r.Use(app.postsContextMiddleware)
 			r.Get("/", app.getPostHandler)
 
-			// Solo el dueño puede actualizar o borrar
-			r.Group(func(r chi.Router) {
-				// Solo el dueño o alguien con nivel 2 (moderador) o superior puede actualizar
-				// Solo el dueño o alguien con nivel 2 (moderador) o superior puede actualizar
-				r.With(app.checkPermission(2)).Patch("/", app.updatePostHandler)
-
-				// Solo el dueño o alguien con nivel 3 (admin) puede borrar
-				r.With(app.checkPermission(3)).Delete("/", app.deletePostHandler)
-			})
+			// Solo el dueño o un moderador (nivel >= 2) puede actualizar
+			r.With(app.checkPermission(2)).Patch("/", app.updatePostHandler)
+			// Solo el dueño o un admin (nivel >= 3) puede borrar
+			r.With(app.checkPermission(3)).Delete("/", app.deletePostHandler)
 		})
 	})
 
