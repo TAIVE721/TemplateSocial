@@ -17,7 +17,8 @@ type Storage struct {
 	Users     *UserStore
 	Posts     *PostStore
 	Followers *FollowerStore
-	Roles     *RoleStore // <-- AÑADE ESTA LÍNEA
+	Roles     *RoleStore
+	Comments  *CommentStore // <-- AÑADE ESTO
 }
 
 func NewStorage(db *sql.DB) Storage {
@@ -25,6 +26,7 @@ func NewStorage(db *sql.DB) Storage {
 		Users:     &UserStore{db: db},
 		Posts:     &PostStore{db: db},
 		Followers: &FollowerStore{db: db},
-		Roles:     &RoleStore{db: db}, // <-- AÑADE ESTA LÍNEA
+		Roles:     &RoleStore{db: db},
+		Comments:  &CommentStore{db: db}, // <-- Y ESTO
 	}
 }

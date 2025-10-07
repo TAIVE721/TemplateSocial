@@ -161,6 +161,7 @@ func (app *application) mount() http.Handler {
 			r.With(app.checkPermission(2)).Patch("/", app.updatePostHandler)
 			// Solo el dueño o un admin (nivel >= 3) puede borrar
 			r.With(app.checkPermission(3)).Delete("/", app.deletePostHandler)
+			r.Post("/comments", app.createCommentHandler)
 		})
 	})
 

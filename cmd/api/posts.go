@@ -11,6 +11,16 @@ import (
 // getPostHandler maneja la recuperación de una publicación.
 func (app *application) getPostHandler(w http.ResponseWriter, r *http.Request) {
 	post := r.Context().Value(postCtxKey).(*store.Post)
+
+	// --- AÑADE ESTA LÓGICA ---
+	comments, err := app.store.Comments.GetByPostID(r.Context(), post.ID)
+	if err != nil {
+		app.internalServerError(w, r, err)
+		return
+	}
+	post.Comments = comments // Adjuntamos los comentarios al post
+	// -------------------------
+
 	app.jsonResponse(w, http.StatusOK, post)
 }
 

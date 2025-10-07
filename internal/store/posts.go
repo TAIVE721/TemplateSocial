@@ -8,13 +8,14 @@ import (
 )
 
 type Post struct {
-	ID        int64  `json:"id"`
-	Title     string `json:"title"`
-	Content   string `json:"content"`
-	UserID    int64  `json:"user_id"`
-	CreatedAt string `json:"created_at"`
-	Version   int    `json:"version"`
-	User      User   `json:"user"` // ¡Campo nuevo!
+	ID        int64     `json:"id"`
+	Title     string    `json:"title"`
+	Content   string    `json:"content"`
+	UserID    int64     `json:"user_id"`
+	CreatedAt string    `json:"created_at"`
+	Version   int       `json:"version"`
+	User      User      `json:"user"`     // ¡Campo nuevo!
+	Comments  []Comment `json:"comments"` // <-- AÑADE ESTO
 }
 
 type PostStore struct {
